@@ -27,8 +27,6 @@ const jumpBtn = document.getElementById('jump-btn');
 const duckBtn = document.getElementById('duck-btn');
 const pauseBtn = document.getElementById('pause-btn');
 
-const otterSource = document.getElementById('otter-source');
-
 const STORAGE_KEYS = {
   visitors: 'karby_visitors',
   guestbook: 'karby_guestbook',
@@ -292,6 +290,7 @@ function startGameFromInput() {
   registerVisitor(name);
   setHelper('좋아요. 이제 바위를 피하고 조개를 모아보세요.');
   resetGame();
+  render();
 }
 
 function resetGame() {
@@ -692,29 +691,12 @@ function drawFallbackPlayer() {
 function drawPlayer() {
   const bounce = player.grounded ? Math.sin(player.bob) * 2 : -4;
   const x = player.x;
-  const y = player.y + bounce;
-
   ctx.fillStyle = 'rgba(76, 53, 29, 0.22)';
   ctx.beginPath();
   ctx.ellipse(x + 52, groundY + 4, 38, 12, 0, 0, Math.PI * 2);
   ctx.fill();
 
   drawFallbackPlayer();
-
-  if (!otterSprite || !otterSprite.complete) {
-    return;
-  }
-
-  try {
-    ctx.imageSmoothingEnabled = false;
-    if (player.ducking) {
-      ctx.drawImage(otterSprite, x + 8, y + 24, 84, 84);
-    } else {
-      ctx.drawImage(otterSprite, x + 6, y + 6, 92, 92);
-    }
-  } catch (error) {
-    otterSprite = null;
-  }
 }
 
 function drawObstacle(obstacle) {
@@ -842,20 +824,6 @@ function loop(timestamp) {
   requestAnimationFrame(loop);
 }
 
-function buildOtterSprite() {
-  if (!otterSource) {
-    return;
-  }
-
-  if (!otterSource.complete) {
-    otterSource.addEventListener('load', () => {
-      otterSprite = otterSource;
-    }, { once: true });
-    return;
-  }
-  otterSprite = otterSource;
-}
-
 startRunBtn.addEventListener('click', () => {
   canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
   startGameFromInput();
@@ -910,8 +878,8 @@ refreshPlayerHud();
 renderHud();
 updateOverlay('ready');
 setHelper('앞으로 더 재미있는 게임을 만들겠습니당');
+render();
 requestAnimationFrame(loop);
-buildOtterSprite();
 updatePauseButton();
 
 guestbookForm.addEventListener('submit', event => {
