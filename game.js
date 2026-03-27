@@ -27,7 +27,6 @@ const jumpBtn = document.getElementById('jump-btn');
 const duckBtn = document.getElementById('duck-btn');
 
 const otterSource = document.getElementById('otter-source');
-const otterPreview = document.getElementById('otter-preview');
 
 const STORAGE_KEYS = {
   visitors: 'karby_visitors',
@@ -62,7 +61,7 @@ const state = {
   speed: 5.6,
   gravity: 0.78,
   lastTime: 0,
-  playerName: localStorage.getItem(STORAGE_KEYS.lastPlayer) || '',
+  playerName: localStorage.getItem(STORAGE_KEYS.lastPlayer) || 'yelin',
 };
 
 const player = {
@@ -278,7 +277,7 @@ function setCurrentPlayer(name) {
 }
 
 function startGameFromInput() {
-  const name = normalizeName(playerNameInput.value) || state.playerName;
+  const name = normalizeName(playerNameInput.value) || state.playerName || 'yelin';
   if (!name) {
     setHelper('게임 시작 전에 사용자 이름을 입력해 주세요.', true);
     playerNameInput.focus();
@@ -758,84 +757,94 @@ function loop(timestamp) {
 }
 
 function buildOtterSprite() {
+  if (!otterSource) {
+    return;
+  }
+
   if (!otterSource.complete) {
     otterSource.addEventListener('load', buildOtterSprite, { once: true });
     return;
   }
 
-  const rawCanvas = document.createElement('canvas');
-  const rawCtx = rawCanvas.getContext('2d', { willReadFrequently: true });
-  rawCanvas.width = otterSource.naturalWidth;
-  rawCanvas.height = otterSource.naturalHeight;
-  rawCtx.drawImage(otterSource, 0, 0);
-
-  const imageData = rawCtx.getImageData(0, 0, rawCanvas.width, rawCanvas.height);
-  const { data } = imageData;
-  let minX = rawCanvas.width;
-  let minY = rawCanvas.height;
-  let maxX = 0;
-  let maxY = 0;
-
-  const sampleAt = (x, y) => {
-    const index = (y * rawCanvas.width + x) * 4;
-    return [data[index], data[index + 1], data[index + 2]];
-  };
-
-  const backgroundSamples = [
-    sampleAt(1, 1),
-    sampleAt(rawCanvas.width - 2, 1),
-    sampleAt(1, rawCanvas.height - 2),
-    sampleAt(rawCanvas.width - 2, rawCanvas.height - 2),
-  ];
-
-  for (let index = 0; index < data.length; index += 4) {
-    const r = data[index];
-    const g = data[index + 1];
-    const b = data[index + 2];
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const average = (r + g + b) / 3;
-    const nearCornerSample = backgroundSamples.some(sample => (
-      Math.abs(r - sample[0]) < 28 &&
-      Math.abs(g - sample[1]) < 28 &&
-      Math.abs(b - sample[2]) < 28
-    ));
-    const isDarkNeutral = max - min < 20 && average < 96;
-
-    if (nearCornerSample || isDarkNeutral) {
-      data[index + 3] = 0;
-      continue;
-    }
-
-    const pixelIndex = index / 4;
-    const x = pixelIndex % rawCanvas.width;
-    const y = Math.floor(pixelIndex / rawCanvas.width);
-    minX = Math.min(minX, x);
-    minY = Math.min(minY, y);
-    maxX = Math.max(maxX, x);
-    maxY = Math.max(maxY, y);
-  }
-
-  rawCtx.putImageData(imageData, 0, 0);
-
-  if (minX >= maxX || minY >= maxY) {
-    otterSprite = rawCanvas;
-    otterPreview.src = rawCanvas.toDataURL('image/png');
+  if (!otterSource.naturalWidth || !otterSource.naturalHeight) {
+    otterSprite = otterSource;
     return;
   }
 
-  const padding = 10;
-  const width = maxX - minX + 1;
-  const height = maxY - minY + 1;
-  const finalCanvas = document.createElement('canvas');
-  finalCanvas.width = width + padding * 2;
-  finalCanvas.height = height + padding * 2;
-  const finalCtx = finalCanvas.getContext('2d');
-  finalCtx.imageSmoothingEnabled = false;
-  finalCtx.drawImage(rawCanvas, minX, minY, width, height, padding, padding, width, height);
+  try {
+    const rawCanvas = document.createElement('canvas');
+    const rawCtx = rawCanvas.getContext('2d', { willReadFrequently: true });
+    rawCanvas.width = otterSource.naturalWidth;
+    rawCanvas.height = otterSource.naturalHeight;
+    rawCtx.drawImage(otterSource, 0, 0);
 
-  otterSprite = finalCanvas;
-  otterPreview.src = finalCanvas.toDataURL('image/png');
+    const imageData = rawCtx.getImageData(0, 0, rawCanvas.width, rawCanvas.height);
+    const { data } = imageData;
+    let minX = rawCanvas.width;
+    let minY = rawCanvas.height;
+    let maxX = 0;
+    let maxY = 0;
+
+    const sampleAt = (x, y) => {
+      const index = (y * rawCanvas.width + x) * 4;
+      return [data[index], data[index + 1], data[index + 2]];
+    };
+
+    const backgroundSamples = [
+      sampleAt(1, 1),
+      sampleAt(rawCanvas.width - 2, 1),
+      sampleAt(1, rawCanvas.height - 2),
+      sampleAt(rawCanvas.width - 2, rawCanvas.height - 2),
+    ];
+
+    for (let index = 0; index < data.length; index += 4) {
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const average = (r + g + b) / 3;
+      const nearCornerSample = backgroundSamples.some(sample => (
+        Math.abs(r - sample[0]) < 28 &&
+        Math.abs(g - sample[1]) < 28 &&
+        Math.abs(b - sample[2]) < 28
+      ));
+      const isDarkNeutral = max - min < 20 && average < 96;
+
+      if (nearCornerSample || isDarkNeutral) {
+        data[index + 3] = 0;
+        continue;
+      }
+
+      const pixelIndex = index / 4;
+      const x = pixelIndex % rawCanvas.width;
+      const y = Math.floor(pixelIndex / rawCanvas.width);
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+
+    rawCtx.putImageData(imageData, 0, 0);
+
+    if (minX >= maxX || minY >= maxY) {
+      otterSprite = rawCanvas;
+      return;
+    }
+
+    const padding = 10;
+    const width = maxX - minX + 1;
+    const height = maxY - minY + 1;
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = width + padding * 2;
+    finalCanvas.height = height + padding * 2;
+    const finalCtx = finalCanvas.getContext('2d');
+    finalCtx.imageSmoothingEnabled = false;
+    finalCtx.drawImage(rawCanvas, minX, minY, width, height, padding, padding, width, height);
+    otterSprite = finalCanvas;
+  } catch (error) {
+    otterSprite = otterSource;
+  }
 }
 
 startRunBtn.addEventListener('click', () => {
@@ -886,17 +895,15 @@ canvas.addEventListener('pointerdown', () => {
 });
 
 player.y = groundY - player.height;
-if (state.playerName) {
-  playerNameInput.value = state.playerName;
-}
+playerNameInput.value = state.playerName || 'yelin';
 renderGuestbook();
 renderLeaderboard();
 refreshPlayerHud();
 renderHud();
 updateOverlay('ready');
 setHelper('이 브라우저 기준으로 기록이 저장돼요.');
-buildOtterSprite();
 requestAnimationFrame(loop);
+buildOtterSprite();
 
 guestbookForm.addEventListener('submit', event => {
   event.preventDefault();
