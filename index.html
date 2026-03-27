@@ -24,7 +24,7 @@
         <button id="show-tip-btn" class="ghost-btn" type="button">조작법 보기</button>
       </div>
       <div class="hero-tip" id="hero-tip">
-        Space, W, 위 방향키 또는 화면 클릭으로 점프할 수 있어요.
+        Spacebar나 화면 클릭으로 점프하고, 조개를 먹으면 코인이 올라가요.
       </div>
     </section>
 
@@ -35,16 +35,20 @@
             <span class="panel-label">OTTER RUNNER</span>
             <h2>Forest Dash</h2>
           </div>
-          <div class="score-cluster">
-            <div class="score-box">
-              <span>거리</span>
-              <strong id="distance-value">000m</strong>
-            </div>
-            <div class="score-box">
-              <span>최고 기록</span>
-              <strong id="best-value">000m</strong>
-            </div>
+        <div class="score-cluster">
+          <div class="score-box">
+            <span>거리</span>
+            <strong id="distance-value">000m</strong>
           </div>
+          <div class="score-box coin-box">
+            <span>조개 코인</span>
+            <strong id="coin-value">00</strong>
+          </div>
+          <div class="score-box">
+            <span>최고 기록</span>
+            <strong id="best-value">000m</strong>
+          </div>
+        </div>
         </div>
 
         <div class="game-stage-wrap">
@@ -60,7 +64,7 @@
         </div>
 
         <div class="game-footer">
-          <div class="control-chip">SPACE / W / ↑ / 클릭 : 점프</div>
+          <div class="control-chip">SPACE / 클릭 : 점프</div>
           <div class="control-chip warm">ESC : 일시정지</div>
         </div>
       </article>

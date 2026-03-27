@@ -219,6 +219,10 @@ input {
   font-size: 18px;
 }
 
+.coin-box strong {
+  color: #b97714;
+}
+
 .game-stage-wrap {
   position: relative;
   margin-top: 18px;
