@@ -37,6 +37,10 @@
           </div>
           <div class="score-cluster">
             <div class="score-box">
+              <span>플레이어</span>
+              <strong id="player-value">-</strong>
+            </div>
+            <div class="score-box">
               <span>거리</span>
               <strong id="distance-value">000m</strong>
             </div>
@@ -52,8 +56,11 @@
           <div class="game-overlay" id="game-overlay">
             <div class="overlay-card">
               <div class="overlay-badge">READY</div>
-              <h3>카비가 출발 준비 중!</h3>
-              <p>숲길 장애물을 피해 멀리 달려보세요. 채팅창에서 친구가 힌트도 보내줍니다.</p>
+              <h3>출발 전에 사용자 이름을 적어주세요</h3>
+              <p>이름을 입력하고 시작하면 죽었을 때 순위가 저장됩니다.</p>
+              <label class="overlay-label" for="player-name-input">사용자 이름</label>
+              <input id="player-name-input" class="overlay-input" type="text" maxlength="18" placeholder="예: yelin">
+              <div id="overlay-helper" class="overlay-helper">이름을 입력하고 출발하기를 눌러주세요.</div>
               <button id="overlay-start-btn" class="primary-btn" type="button">출발하기</button>
             </div>
           </div>
@@ -96,6 +103,14 @@
           <input id="chat-input" type="text" maxlength="120" placeholder="친구에게 메시지 보내기...">
           <button class="primary-btn small" type="submit">전송</button>
         </form>
+
+        <div class="leaderboard-panel">
+          <div class="leaderboard-head">
+            <span class="panel-label">LEADERBOARD</span>
+            <strong>TOP 5</strong>
+          </div>
+          <ol id="leaderboard-list" class="leaderboard-list"></ol>
+        </div>
       </aside>
     </section>
   </main>

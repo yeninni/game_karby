@@ -6,8 +6,12 @@ const overlayStartBtn = document.getElementById('overlay-start-btn');
 const startRunBtn = document.getElementById('start-run-btn');
 const showTipBtn = document.getElementById('show-tip-btn');
 const heroTip = document.getElementById('hero-tip');
+const playerNameInput = document.getElementById('player-name-input');
+const overlayHelper = document.getElementById('overlay-helper');
+const playerValue = document.getElementById('player-value');
 const distanceValue = document.getElementById('distance-value');
 const bestValue = document.getElementById('best-value');
+const leaderboardList = document.getElementById('leaderboard-list');
 
 const chatWindow = document.getElementById('chat-window');
 const chatForm = document.getElementById('chat-form');
@@ -20,15 +24,22 @@ const responses = {
   '도토리 간식 챙겨줘': '이미 주머니에 넣어뒀지. 최고 기록 세우면 하나 더 줄게.',
 };
 
-const bestDistance = Number(localStorage.getItem('karby_best_distance') || 0);
+const STORAGE_KEYS = {
+  leaderboard: 'karby_leaderboard',
+  lastPlayer: 'karby_last_player',
+};
+
+const leaderboard = loadJson(STORAGE_KEYS.leaderboard, []);
+const lastPlayer = localStorage.getItem(STORAGE_KEYS.lastPlayer) || '';
 let state = {
   playing: false,
   paused: false,
   distance: 0,
-  best: bestDistance,
+  best: 0,
   speed: 4.2,
   gravity: 0.68,
   lastTime: 0,
+  playerName: lastPlayer,
 };
 
 const player = {
@@ -50,6 +61,104 @@ let cloudOffset = 0;
 let hillOffset = 0;
 let sparkOffset = 0;
 
+function loadJson(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function saveJson(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function setOverlayHelper(text, isError = false) {
+  overlayHelper.textContent = text;
+  overlayHelper.classList.toggle('error', isError);
+}
+
+function normalizeName(value) {
+  return value.trim().replace(/\s+/g, ' ').slice(0, 18);
+}
+
+function findLeaderboardEntry(name) {
+  return leaderboard.find(entry => entry.name.toLowerCase() === name.toLowerCase());
+}
+
+function refreshCurrentPlayer() {
+  playerValue.textContent = state.playerName || '-';
+  const entry = state.playerName ? findLeaderboardEntry(state.playerName) : null;
+  state.best = entry ? entry.bestDistance : 0;
+  bestValue.textContent = `${String(Math.floor(state.best)).padStart(3, '0')}m`;
+}
+
+function renderLeaderboard() {
+  if (!leaderboard.length) {
+    leaderboardList.innerHTML = '<li class="chat-line system"><span class="chat-name">system</span><p>아직 기록이 없어요.</p></li>';
+    return;
+  }
+
+  leaderboardList.innerHTML = leaderboard.slice(0, 5)
+    .map((entry, index) => (
+      `<li class="leaderboard-item">
+        <span class="rank-badge">${index + 1}</span>
+        <div>
+          <strong>${entry.name}</strong>
+          <div class="leader-meta">${entry.bestDistance}m</div>
+        </div>
+        <span class="leader-meta">${entry.games}회</span>
+      </li>`
+    ))
+    .join('');
+}
+
+function saveScore(score) {
+  if (!state.playerName) return null;
+
+  const now = new Date().toISOString();
+  const existing = findLeaderboardEntry(state.playerName);
+  if (existing) {
+    existing.games += 1;
+    existing.updatedAt = now;
+    existing.bestDistance = Math.max(existing.bestDistance, score);
+  } else {
+    leaderboard.push({
+      name: state.playerName,
+      bestDistance: score,
+      games: 1,
+      updatedAt: now,
+    });
+  }
+
+  leaderboard.sort((a, b) => {
+    if (b.bestDistance !== a.bestDistance) return b.bestDistance - a.bestDistance;
+    return new Date(b.updatedAt) - new Date(a.updatedAt);
+  });
+  saveJson(STORAGE_KEYS.leaderboard, leaderboard);
+  renderLeaderboard();
+  refreshCurrentPlayer();
+  return leaderboard.findIndex(entry => entry.name.toLowerCase() === state.playerName.toLowerCase()) + 1;
+}
+
+function prepareRun() {
+  const enteredName = normalizeName(playerNameInput.value || state.playerName || '');
+  if (!enteredName) {
+    setOverlayHelper('사용자 이름을 먼저 입력해 주세요.', true);
+    playerNameInput.focus();
+    return false;
+  }
+
+  state.playerName = enteredName;
+  localStorage.setItem(STORAGE_KEYS.lastPlayer, enteredName);
+  playerNameInput.value = enteredName;
+  refreshCurrentPlayer();
+  setOverlayHelper('좋아요. 이제 출발해요!', false);
+  resetGame();
+  return true;
+}
+
 function resetGame() {
   state.distance = 0;
   state.speed = 4.2;
@@ -62,7 +171,8 @@ function resetGame() {
   player.velocityY = 0;
   player.grounded = true;
   overlay.classList.add('hidden');
-  pushSystemMessage('새 러닝 시작! 카비가 숲길로 출발합니다.');
+  pushSystemMessage(`${state.playerName || '플레이어'}님 새 러닝 시작!`);
+  renderHud();
 }
 
 function togglePause() {
@@ -173,23 +283,18 @@ function endGame() {
   overlay.classList.remove('hidden');
   document.querySelector('.overlay-badge').textContent = 'GAME OVER';
   document.querySelector('.overlay-card h3').textContent = '카비가 잠깐 미끄러졌어요!';
-  document.querySelector('.overlay-card p').textContent = `이번 기록은 ${Math.floor(state.distance)}m 입니다. 다시 도전해서 더 멀리 달려보세요.`;
-  overlayStartBtn.textContent = '다시 달리기';
-
   const finalDistance = Math.floor(state.distance);
-  if (finalDistance > state.best) {
-    state.best = finalDistance;
-    localStorage.setItem('karby_best_distance', String(finalDistance));
-    pushFriendMessage(`우와! 신기록 ${finalDistance}m 달성! 카비 오늘 컨디션 최고다.`);
-  } else {
-    pushFriendMessage(`이번엔 ${finalDistance}m였어. 다시 하면 더 멀리 갈 수 있어!`);
-  }
+  const rank = saveScore(finalDistance);
+  document.querySelector('.overlay-card p').textContent = `이번 기록은 ${finalDistance}m 입니다.${rank ? ` 현재 ${rank}위예요.` : ''} 다시 도전해보세요.`;
+  overlayStartBtn.textContent = '다시 달리기';
+  setOverlayHelper('같은 이름으로 다시 도전하거나 다른 이름을 입력할 수 있어요.', false);
+  pushSystemMessage(`${state.playerName || '플레이어'}님의 이번 기록은 ${finalDistance}m`);
   renderHud();
 }
 
 function renderHud() {
   distanceValue.textContent = `${String(Math.floor(state.distance)).padStart(3, '0')}m`;
-  bestValue.textContent = `${String(Math.floor(state.best)).padStart(3, '0')}m`;
+  refreshCurrentPlayer();
 }
 
 function drawRoundedRect(x, y, width, height, radius, fill) {
@@ -406,7 +511,7 @@ function pushFriendMessage(text) {
 }
 
 function pushMyMessage(text) {
-  addChatLine('me', '카비', text);
+  addChatLine('me', state.playerName || '방문자', text);
 }
 
 function pushSystemMessage(text) {
@@ -440,7 +545,7 @@ replyButtons.forEach(button => {
 });
 
 [startRunBtn, overlayStartBtn].forEach(button => {
-  button.addEventListener('click', resetGame);
+  button.addEventListener('click', prepareRun);
 });
 
 showTipBtn.addEventListener('click', () => {
@@ -448,19 +553,28 @@ showTipBtn.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', event => {
+  if (event.target === playerNameInput) {
+    if (event.code === 'Enter') {
+      event.preventDefault();
+      prepareRun();
+    }
+    return;
+  }
   if (['Space', 'ArrowUp', 'KeyW'].includes(event.code)) {
     event.preventDefault();
-    if (!state.playing) resetGame();
+    if (!state.playing && overlay.classList.contains('hidden')) prepareRun();
     else jump();
   }
   if (event.code === 'Escape') togglePause();
 });
 
 canvas.addEventListener('pointerdown', () => {
-  if (!state.playing) resetGame();
+  if (!state.playing && overlay.classList.contains('hidden')) prepareRun();
   else jump();
 });
 
+playerNameInput.value = lastPlayer;
+renderLeaderboard();
 renderHud();
 player.y = groundY - player.height;
 chatWindow.innerHTML = '<div class="chat-line system"><span class="chat-name">system</span><p>아직 남겨진 글이 없어요.</p></div>';
