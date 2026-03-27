@@ -278,6 +278,9 @@ function setCurrentPlayer(name) {
 }
 
 function startGameFromInput() {
+  if (!playerNameInput.value.trim()) {
+    playerNameInput.value = state.playerName || 'yelin';
+  }
   const name = normalizeName(playerNameInput.value) || state.playerName || 'yelin';
   if (!name) {
     setHelper('게임 시작 전에 사용자 이름을 입력해 주세요.', true);
@@ -297,6 +300,7 @@ function resetGame() {
   state.speed = 4.15;
   state.playing = true;
   state.paused = false;
+  state.lastTime = 0;
   obstacles.length = 0;
   collectibles.length = 0;
   flyers.length = 0;
@@ -610,11 +614,79 @@ function drawFallbackPlayer() {
   const bounce = player.grounded ? Math.sin(player.bob) * 2 : -3;
   const x = player.x;
   const y = player.y + bounce;
+  const drawY = player.ducking ? y + 20 : y;
+  const drawHeight = player.ducking ? 88 : 116;
 
-  drawRoundedRect(x + 16, y + 28, 62, 60, 22, '#7d4a2a');
-  drawRoundedRect(x + 24, y + 12, 48, 34, 18, '#84502f');
-  drawRoundedRect(x + 26, y + 26, 42, 22, 12, '#f2d3a8');
-  drawRoundedRect(x + 16, y + 52, 62, 16, 8, '#bf4937');
+  ctx.fillStyle = '#7d4a2a';
+  ctx.beginPath();
+  ctx.ellipse(x + 52, drawY + drawHeight - 54, 35, 30, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#7f4b2c';
+  ctx.beginPath();
+  ctx.arc(x + 34, drawY + 18, 10, 0, Math.PI * 2);
+  ctx.arc(x + 70, drawY + 18, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#7d4a2a';
+  ctx.beginPath();
+  ctx.arc(x + 52, drawY + 28, 30, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f3d5ad';
+  ctx.beginPath();
+  ctx.ellipse(x + 52, drawY + 36, 24, 19, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#2d1b15';
+  ctx.beginPath();
+  ctx.arc(x + 42, drawY + 30, 4, 0, Math.PI * 2);
+  ctx.arc(x + 62, drawY + 30, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#d27d72';
+  ctx.beginPath();
+  ctx.arc(x + 33, drawY + 40, 5, 0, Math.PI * 2);
+  ctx.arc(x + 71, drawY + 40, 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#6f3520';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(x + 52, drawY + 38, 10, 0.18 * Math.PI, 0.82 * Math.PI);
+  ctx.stroke();
+
+  drawRoundedRect(x + 26, drawY + 6, 52, 16, 9, '#315d90');
+  drawRoundedRect(x + 34, drawY - 4, 36, 16, 8, '#476f9d');
+  drawRoundedRect(x + 42, drawY + 5, 10, 6, 2, '#e6b74d');
+
+  drawRoundedRect(x + 24, drawY + 50, 58, 22, 11, '#2f7b4c');
+  drawRoundedRect(x + 20, drawY + 46, 66, 10, 5, '#bf4937');
+  drawRoundedRect(x + 38, drawY + 59, 28, 8, 4, '#b57d2f');
+
+  ctx.fillStyle = '#7d4a2a';
+  ctx.fillRect(x + 28, drawY + 70, 12, 24);
+  ctx.fillRect(x + 64, drawY + 70, 12, 24);
+  ctx.fillRect(x + 18, drawY + 54, 12, 24);
+  ctx.fillRect(x + 74, drawY + 54, 12, 24);
+
+  ctx.fillStyle = '#f0d2ad';
+  ctx.fillRect(x + 26, drawY + 86, 16, 8);
+  ctx.fillRect(x + 62, drawY + 86, 16, 8);
+
+  ctx.strokeStyle = '#6f3f22';
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(x + 18, drawY + 62);
+  ctx.quadraticCurveTo(x - 4, drawY + 44, x + 8, drawY + 28);
+  ctx.stroke();
+
+  drawRoundedRect(x + 77, drawY + 48, 18, 34, 8, '#8B5C33');
+  drawRoundedRect(x + 81, drawY + 54, 10, 22, 5, '#5A3A24');
+  ctx.fillStyle = '#F6D27A';
+  ctx.beginPath();
+  ctx.arc(x + 86, drawY + 65, 5, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawPlayer() {
@@ -627,16 +699,21 @@ function drawPlayer() {
   ctx.ellipse(x + 52, groundY + 4, 38, 12, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  if (!otterSprite) {
-    drawFallbackPlayer();
+  drawFallbackPlayer();
+
+  if (!otterSprite || !otterSprite.complete) {
     return;
   }
 
-  ctx.imageSmoothingEnabled = false;
-  if (player.ducking) {
-    ctx.drawImage(otterSprite, x + 4, y + 18, player.width - 8, player.height);
-  } else {
-    ctx.drawImage(otterSprite, x - 4, y - 6, player.width, player.height);
+  try {
+    ctx.imageSmoothingEnabled = false;
+    if (player.ducking) {
+      ctx.drawImage(otterSprite, x + 8, y + 24, 84, 84);
+    } else {
+      ctx.drawImage(otterSprite, x + 6, y + 6, 92, 92);
+    }
+  } catch (error) {
+    otterSprite = null;
   }
 }
 
@@ -771,89 +848,12 @@ function buildOtterSprite() {
   }
 
   if (!otterSource.complete) {
-    otterSource.addEventListener('load', buildOtterSprite, { once: true });
+    otterSource.addEventListener('load', () => {
+      otterSprite = otterSource;
+    }, { once: true });
     return;
   }
-
-  if (!otterSource.naturalWidth || !otterSource.naturalHeight) {
-    otterSprite = otterSource;
-    return;
-  }
-
-  try {
-    const rawCanvas = document.createElement('canvas');
-    const rawCtx = rawCanvas.getContext('2d', { willReadFrequently: true });
-    rawCanvas.width = otterSource.naturalWidth;
-    rawCanvas.height = otterSource.naturalHeight;
-    rawCtx.drawImage(otterSource, 0, 0);
-
-    const imageData = rawCtx.getImageData(0, 0, rawCanvas.width, rawCanvas.height);
-    const { data } = imageData;
-    let minX = rawCanvas.width;
-    let minY = rawCanvas.height;
-    let maxX = 0;
-    let maxY = 0;
-
-    const sampleAt = (x, y) => {
-      const index = (y * rawCanvas.width + x) * 4;
-      return [data[index], data[index + 1], data[index + 2]];
-    };
-
-    const backgroundSamples = [
-      sampleAt(1, 1),
-      sampleAt(rawCanvas.width - 2, 1),
-      sampleAt(1, rawCanvas.height - 2),
-      sampleAt(rawCanvas.width - 2, rawCanvas.height - 2),
-    ];
-
-    for (let index = 0; index < data.length; index += 4) {
-      const r = data[index];
-      const g = data[index + 1];
-      const b = data[index + 2];
-      const max = Math.max(r, g, b);
-      const min = Math.min(r, g, b);
-      const average = (r + g + b) / 3;
-      const nearCornerSample = backgroundSamples.some(sample => (
-        Math.abs(r - sample[0]) < 28 &&
-        Math.abs(g - sample[1]) < 28 &&
-        Math.abs(b - sample[2]) < 28
-      ));
-      const isDarkNeutral = max - min < 20 && average < 96;
-
-      if (nearCornerSample || isDarkNeutral) {
-        data[index + 3] = 0;
-        continue;
-      }
-
-      const pixelIndex = index / 4;
-      const x = pixelIndex % rawCanvas.width;
-      const y = Math.floor(pixelIndex / rawCanvas.width);
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-    }
-
-    rawCtx.putImageData(imageData, 0, 0);
-
-    if (minX >= maxX || minY >= maxY) {
-      otterSprite = rawCanvas;
-      return;
-    }
-
-    const padding = 10;
-    const width = maxX - minX + 1;
-    const height = maxY - minY + 1;
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = width + padding * 2;
-    finalCanvas.height = height + padding * 2;
-    const finalCtx = finalCanvas.getContext('2d');
-    finalCtx.imageSmoothingEnabled = false;
-    finalCtx.drawImage(rawCanvas, minX, minY, width, height, padding, padding, width, height);
-    otterSprite = finalCanvas;
-  } catch (error) {
-    otterSprite = otterSource;
-  }
+  otterSprite = otterSource;
 }
 
 startRunBtn.addEventListener('click', () => {
