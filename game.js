@@ -34,6 +34,7 @@ const STORAGE_KEYS = {
 const groundY = canvas.height - 96;
 const obstacles = [];
 const collectibles = [];
+const flyers = [];
 const particles = [];
 
 let visitors = loadJson(STORAGE_KEYS.visitors, []);
@@ -41,6 +42,7 @@ let leaderboard = loadJson(STORAGE_KEYS.leaderboard, []);
 let otterSprite = null;
 let spawnTimer = 0;
 let collectibleTimer = 0;
+let flyerTimer = 0;
 let cloudOffset = 0;
 let hillOffset = 0;
 let sparkOffset = 0;
@@ -62,10 +64,12 @@ const player = {
   y: 0,
   width: 104,
   height: 116,
+  baseHeight: 116,
   velocityY: 0,
   jumpPower: -16.6,
   grounded: true,
   bob: 0,
+  ducking: false,
 };
 
 function loadJson(key, fallback) {
@@ -241,7 +245,7 @@ function setCurrentPlayer(name) {
 }
 
 function startGameFromInput() {
-  const name = normalizeName(playerNameInput.value);
+  const name = normalizeName(playerNameInput.value) || state.playerName;
   if (!name) {
     setHelper('게임 시작 전에 사용자 이름을 입력해 주세요.', true);
     playerNameInput.focus();
@@ -262,12 +266,15 @@ function resetGame() {
   state.paused = false;
   obstacles.length = 0;
   collectibles.length = 0;
+  flyers.length = 0;
   particles.length = 0;
   spawnTimer = 0;
   collectibleTimer = 0;
+  flyerTimer = 0;
   player.y = groundY - player.height;
   player.velocityY = 0;
   player.grounded = true;
+  player.ducking = false;
   updateOverlay('ready');
   overlay.classList.add('hidden');
   renderHud();
@@ -282,9 +289,26 @@ function togglePause() {
 function jump() {
   if (!state.playing || state.paused) return;
   if (!player.grounded) return;
+  if (player.ducking) stopDuck();
   player.velocityY = player.jumpPower;
   player.grounded = false;
   emitDust(player.x + 20, player.y + player.height - 6, 8, '#f1d29d');
+}
+
+function startDuck() {
+  if (!state.playing || state.paused) return;
+  if (!player.grounded) return;
+  if (player.ducking) return;
+  player.ducking = true;
+  player.height = 88;
+  player.y = groundY - player.height;
+}
+
+function stopDuck() {
+  if (!player.ducking) return;
+  player.ducking = false;
+  player.height = player.baseHeight;
+  player.y = Math.min(player.y, groundY - player.height);
 }
 
 function emitDust(x, y, count, color) {
@@ -328,6 +352,21 @@ function maybeSpawnCollectible(delta) {
     width: 36,
     height: 30,
     bob: Math.random() * Math.PI * 2,
+  });
+}
+
+function maybeSpawnFlyer(delta) {
+  flyerTimer += delta;
+  const threshold = Math.max(3600, 6200 - state.distance * 0.55);
+  if (flyerTimer < threshold || state.distance < 90) return;
+  flyerTimer = 0;
+
+  flyers.push({
+    x: canvas.width + 120,
+    y: groundY - 136 - Math.random() * 26,
+    width: 74,
+    height: 34,
+    wing: Math.random() * Math.PI * 2,
   });
 }
 
@@ -381,6 +420,7 @@ function update(delta) {
 
   maybeSpawnObstacle(delta);
   maybeSpawnCollectible(delta);
+  maybeSpawnFlyer(delta);
 
   obstacles.forEach(obstacle => {
     obstacle.x -= state.speed * delta * 0.1;
@@ -391,12 +431,21 @@ function update(delta) {
     shell.bob += delta * 0.01;
   });
 
+  flyers.forEach(flyer => {
+    flyer.x -= state.speed * delta * 0.14;
+    flyer.wing += delta * 0.018;
+  });
+
   while (obstacles.length && obstacles[0].x + obstacles[0].width < -40) {
     obstacles.shift();
   }
 
   while (collectibles.length && collectibles[0].x + collectibles[0].width < -40) {
     collectibles.shift();
+  }
+
+  while (flyers.length && flyers[0].x + flyers[0].width < -50) {
+    flyers.shift();
   }
 
   for (let index = particles.length - 1; index >= 0; index -= 1) {
@@ -410,6 +459,13 @@ function update(delta) {
 
   for (const obstacle of obstacles) {
     if (intersects(player, obstacle)) {
+      endGame();
+      return;
+    }
+  }
+
+  for (const flyer of flyers) {
+    if (intersects(player, flyer, 12)) {
       endGame();
       return;
     }
@@ -536,7 +592,11 @@ function drawPlayer() {
   }
 
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(otterSprite, x - 4, y - 6, player.width, player.height);
+  if (player.ducking) {
+    ctx.drawImage(otterSprite, x + 4, y + 18, player.width - 8, player.height);
+  } else {
+    ctx.drawImage(otterSprite, x - 4, y - 6, player.width, player.height);
+  }
 }
 
 function drawObstacle(obstacle) {
@@ -597,6 +657,43 @@ function drawCollectible(shell) {
   ctx.fill();
 }
 
+function drawFlyer(flyer) {
+  const flap = Math.sin(flyer.wing) * 6;
+  const x = flyer.x;
+  const y = flyer.y;
+
+  ctx.fillStyle = '#eff4ff';
+  ctx.beginPath();
+  ctx.ellipse(x + 36, y + 18, 18, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#d5dceb';
+  ctx.beginPath();
+  ctx.moveTo(x + 26, y + 16);
+  ctx.lineTo(x + 8, y + 10 - flap);
+  ctx.lineTo(x + 20, y + 22);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(x + 44, y + 16);
+  ctx.lineTo(x + 66, y + 10 + flap);
+  ctx.lineTo(x + 54, y + 22);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#f0b65d';
+  ctx.beginPath();
+  ctx.moveTo(x + 54, y + 18);
+  ctx.lineTo(x + 68, y + 14);
+  ctx.lineTo(x + 56, y + 22);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#36445f';
+  ctx.fillRect(x + 42, y + 15, 3, 3);
+}
+
 function drawParticles() {
   particles.forEach(particle => {
     ctx.globalAlpha = Math.max(0, particle.life / 30);
@@ -611,6 +708,7 @@ function drawParticles() {
 function render() {
   drawBackground();
   collectibles.forEach(drawCollectible);
+  flyers.forEach(drawFlyer);
   drawPlayer();
   obstacles.forEach(drawObstacle);
   drawParticles();
@@ -718,7 +816,18 @@ window.addEventListener('keydown', event => {
     else jump();
   }
 
+  if (event.code === 'ArrowDown') {
+    event.preventDefault();
+    startDuck();
+  }
+
   if (event.code === 'Escape') togglePause();
+});
+
+window.addEventListener('keyup', event => {
+  if (event.code === 'ArrowDown') {
+    stopDuck();
+  }
 });
 
 canvas.addEventListener('pointerdown', () => {
