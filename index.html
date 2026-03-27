@@ -11,20 +11,22 @@
 </head>
 <body>
   <div class="noise"></div>
+  <img id="otter-source" src="assets/otter-knight.jpg" alt="" hidden>
+
   <main class="app-shell">
     <section class="hero-copy">
       <div class="brand-pill">GAME KARBY</div>
-      <h1>수달 기사 카비와<br>대화형 러닝 어드벤처</h1>
+      <h1>수달 기사 카비와<br>조개 러닝 어드벤처</h1>
       <p>
-        왼쪽에서는 귀여운 수달이 달리고, 오른쪽에서는 친구와 채팅하듯 작전을 주고받는
-        GitHub Pages용 정적 웹게임입니다.
+        게임 시작 전에 이름을 입력하고, 바위를 피하면서 조개를 모아보세요.
+        방문 기록과 랭킹은 현재 브라우저에 저장됩니다.
       </p>
       <div class="hero-actions">
-        <button id="start-run-btn" class="primary-btn" type="button">게임 시작</button>
+        <button id="start-run-btn" class="primary-btn" type="button">이름 입력하고 시작</button>
         <button id="show-tip-btn" class="ghost-btn" type="button">조작법 보기</button>
       </div>
       <div class="hero-tip" id="hero-tip">
-        Spacebar나 화면 클릭으로 점프하고, 조개를 먹으면 코인이 올라가요.
+        스페이스바 또는 화면 클릭으로 점프합니다. 입력창에 커서가 있으면 스페이스는 게임에 반응하지 않아요.
       </div>
     </section>
 
@@ -33,22 +35,26 @@
         <div class="panel-head">
           <div>
             <span class="panel-label">OTTER RUNNER</span>
-            <h2>Forest Dash</h2>
+            <h2>Shell Dash</h2>
           </div>
-        <div class="score-cluster">
-          <div class="score-box">
-            <span>거리</span>
-            <strong id="distance-value">000m</strong>
+          <div class="score-cluster">
+            <div class="score-box">
+              <span>플레이어</span>
+              <strong id="player-value">Guest</strong>
+            </div>
+            <div class="score-box">
+              <span>거리</span>
+              <strong id="distance-value">000m</strong>
+            </div>
+            <div class="score-box coin-box">
+              <span>조개 코인</span>
+              <strong id="coin-value">00</strong>
+            </div>
+            <div class="score-box">
+              <span>최고 기록</span>
+              <strong id="best-value">000m</strong>
+            </div>
           </div>
-          <div class="score-box coin-box">
-            <span>조개 코인</span>
-            <strong id="coin-value">00</strong>
-          </div>
-          <div class="score-box">
-            <span>최고 기록</span>
-            <strong id="best-value">000m</strong>
-          </div>
-        </div>
         </div>
 
         <div class="game-stage-wrap">
@@ -56,8 +62,11 @@
           <div class="game-overlay" id="game-overlay">
             <div class="overlay-card">
               <div class="overlay-badge">READY</div>
-              <h3>카비가 출발 준비 중!</h3>
-              <p>숲길 장애물을 피해 멀리 달려보세요. 채팅창에서 친구가 힌트도 보내줍니다.</p>
+              <h3>카비와 함께 출발할 이름을 적어주세요</h3>
+              <p>이름을 입력하면 방문자 목록에 남고, 게임 종료 후 점수 랭킹에도 반영됩니다.</p>
+              <label class="overlay-input-label" for="player-name-input">사용자 이름</label>
+              <input id="player-name-input" class="overlay-input" type="text" maxlength="18" placeholder="예: tilon">
+              <div class="overlay-helper" id="overlay-helper">이 브라우저 기준으로 기록이 저장돼요.</div>
               <button id="overlay-start-btn" class="primary-btn" type="button">출발하기</button>
             </div>
           </div>
@@ -69,50 +78,39 @@
         </div>
       </article>
 
-      <aside class="chat-card">
-        <div class="chat-head">
-          <div class="chat-user-block">
-            <div class="otter-avatar">
-              <div class="otter-ears"></div>
-              <div class="otter-face">
-                <span class="eye left"></span>
-                <span class="eye right"></span>
-                <span class="nose"></span>
-              </div>
+      <aside class="side-card">
+        <div class="side-head">
+          <div class="side-head-copy">
+            <span class="panel-label">VISITOR BOARD</span>
+            <h2>카비 길드 게시판</h2>
+            <p>채팅 대신 방문자와 랭킹을 기록하는 보드예요.</p>
+          </div>
+          <div class="sprite-frame">
+            <img id="otter-preview" class="sprite-preview" alt="수달 기사 카비">
+          </div>
+        </div>
+
+        <div class="side-note">
+          GitHub Pages 정적 사이트라서 방문자 목록과 점수 랭킹은 현재 브라우저에만 저장됩니다.
+        </div>
+
+        <div class="board-grid">
+          <section class="board-panel">
+            <div class="board-title-row">
+              <span class="panel-label">VISITORS</span>
+              <strong id="visitor-count">0명</strong>
             </div>
-            <div>
-              <span class="panel-label">TERMINAL CHAT</span>
-              <h2>틸바니안 통신기</h2>
+            <ul id="visitor-list" class="board-list"></ul>
+          </section>
+
+          <section class="board-panel">
+            <div class="board-title-row">
+              <span class="panel-label">LEADERBOARD</span>
+              <strong>TOP 5</strong>
             </div>
-          </div>
-          <span class="status-dot">online</span>
+            <ol id="leaderboard-list" class="leaderboard-list"></ol>
+          </section>
         </div>
-
-        <div class="chat-window" id="chat-window">
-          <div class="chat-line friend">
-            <span class="chat-name">루나</span>
-            <p>카비, 숲 입구 도착했어? 오늘은 도토리 폭탄이 많이 떨어진대.</p>
-          </div>
-          <div class="chat-line me">
-            <span class="chat-name">카비</span>
-            <p>도착 완료. 방패 챙겼고 지금부터 전력질주 간다.</p>
-          </div>
-          <div class="chat-line system">
-            <span class="chat-name">system</span>
-            <p>친구 채팅은 로컬 시뮬레이션입니다. GitHub Pages에서 바로 동작해요.</p>
-          </div>
-        </div>
-
-        <div class="quick-replies">
-          <button class="reply-btn" type="button" data-reply="점프 타이밍 알려줘!">점프 타이밍 알려줘!</button>
-          <button class="reply-btn" type="button" data-reply="숲길 분위기 어때?">숲길 분위기 어때?</button>
-          <button class="reply-btn" type="button" data-reply="도토리 간식 챙겨줘">도토리 간식 챙겨줘</button>
-        </div>
-
-        <form class="chat-form" id="chat-form">
-          <input id="chat-input" type="text" maxlength="120" placeholder="친구에게 메시지 보내기...">
-          <button class="primary-btn small" type="submit">전송</button>
-        </form>
       </aside>
     </section>
   </main>
