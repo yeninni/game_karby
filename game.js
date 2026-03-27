@@ -25,6 +25,7 @@ const guestbookInput = document.getElementById('guestbook-input');
 const leaderboardList = document.getElementById('leaderboard-list');
 const jumpBtn = document.getElementById('jump-btn');
 const duckBtn = document.getElementById('duck-btn');
+const pauseBtn = document.getElementById('pause-btn');
 
 const otterSource = document.getElementById('otter-source');
 
@@ -309,13 +310,20 @@ function resetGame() {
   player.ducking = false;
   updateOverlay('ready');
   overlay.classList.add('hidden');
+  updatePauseButton();
   renderHud();
 }
 
 function togglePause() {
   if (!state.playing) return;
   state.paused = !state.paused;
+  updatePauseButton();
   setHelper(state.paused ? '일시정지됨. ESC를 다시 누르면 이어집니다.' : '다시 출발!');
+}
+
+function updatePauseButton() {
+  if (!pauseBtn) return;
+  pauseBtn.textContent = state.paused ? '다시시작' : '일시정지';
 }
 
 function jump() {
@@ -418,6 +426,7 @@ function intersects(a, b, padding = 16) {
 function endGame() {
   state.playing = false;
   overlay.classList.remove('hidden');
+  updatePauseButton();
 
   const finalDistance = Math.floor(state.distance);
   const finalCoins = state.coins;
@@ -849,8 +858,7 @@ function buildOtterSprite() {
 
 startRunBtn.addEventListener('click', () => {
   canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  overlay.classList.remove('hidden');
-  playerNameInput.focus();
+  startGameFromInput();
 });
 
 overlayStartBtn.addEventListener('click', startGameFromInput);
@@ -901,9 +909,10 @@ renderLeaderboard();
 refreshPlayerHud();
 renderHud();
 updateOverlay('ready');
-setHelper('이 브라우저 기준으로 기록이 저장돼요.');
+setHelper('앞으로 더 재미있는 게임을 만들겠습니당');
 requestAnimationFrame(loop);
 buildOtterSprite();
+updatePauseButton();
 
 guestbookForm.addEventListener('submit', event => {
   event.preventDefault();
@@ -913,6 +922,14 @@ guestbookForm.addEventListener('submit', event => {
 jumpBtn.addEventListener('click', () => {
   if (!state.playing) startGameFromInput();
   else jump();
+});
+
+pauseBtn.addEventListener('click', () => {
+  if (!state.playing) {
+    startGameFromInput();
+    return;
+  }
+  togglePause();
 });
 
 duckBtn.addEventListener('pointerdown', event => {

@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="noise"></div>
-  <img id="otter-source" src="assets/otter-knight.jpg" alt="" hidden>
+  <img id="otter-source" src="assets/otter-sprite.svg" alt="" hidden>
 
   <main class="app-shell">
     <section class="hero-copy">
@@ -22,7 +22,7 @@
         방문 기록과 랭킹은 현재 브라우저에 저장됩니다.
       </p>
       <div class="hero-actions">
-        <button id="start-run-btn" class="primary-btn" type="button">이름 입력하고 시작</button>
+        <button id="start-run-btn" class="primary-btn" type="button">게임 시작</button>
         <button id="show-tip-btn" class="ghost-btn" type="button">조작법 보기</button>
       </div>
       <div class="hero-tip" id="hero-tip">
@@ -57,6 +57,9 @@
               <strong id="best-value">000m</strong>
             </div>
           </div>
+        </div>
+        <div class="stage-actions">
+          <button id="pause-btn" class="ghost-btn stage-btn" type="button">일시정지</button>
         </div>
 
         <div class="game-stage-wrap">
@@ -96,7 +99,7 @@
         </div>
 
         <div class="side-note">
-          GitHub Pages 정적 사이트라서 방문자 채팅과 점수 랭킹은 현재 브라우저에만 저장됩니다.
+          앞으로 더 재미있는 게임을 만들겠습니당
         </div>
 
         <div class="board-grid">
@@ -109,6 +112,9 @@
               <input id="guestbook-input" type="text" maxlength="120" placeholder="방문자 한마디 남기기...">
               <button class="primary-btn" type="submit">남기기</button>
             </form>
+            <div class="guestbook-mascot">
+              <img src="assets/guestbook-buddy.svg" alt="방명록 마스코트">
+            </div>
             <ul id="guestbook-list" class="board-list"></ul>
           </section>
 
