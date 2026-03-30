@@ -745,6 +745,31 @@ function drawBackground() {
   }
 }
 
+function drawOtterNose(centerX, centerY, size = 6) {
+  ctx.fillStyle = '#2d1b15';
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY);
+  ctx.lineTo(centerX - size, centerY + size - 1);
+  ctx.lineTo(centerX + size, centerY + size - 1);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawOtterWhiskers(centerX, centerY, length = 12) {
+  ctx.strokeStyle = '#6f3520';
+  ctx.lineWidth = 1.7;
+  ctx.beginPath();
+  ctx.moveTo(centerX - 4, centerY + 1);
+  ctx.lineTo(centerX - length, centerY - 3);
+  ctx.moveTo(centerX - 5, centerY + 4);
+  ctx.lineTo(centerX - length - 1, centerY + 5);
+  ctx.moveTo(centerX + 4, centerY + 1);
+  ctx.lineTo(centerX + length, centerY - 3);
+  ctx.moveTo(centerX + 5, centerY + 4);
+  ctx.lineTo(centerX + length + 1, centerY + 5);
+  ctx.stroke();
+}
+
 function drawPlayer() {
   if (player.sliding) {
     drawSlidingPlayer();
@@ -771,36 +796,39 @@ function drawPlayer() {
 
   ctx.fillStyle = '#7f4b2c';
   ctx.beginPath();
-  ctx.arc(x + 26, y + 16, 10, 0, Math.PI * 2);
-  ctx.arc(x + 60, y + 16, 10, 0, Math.PI * 2);
+  ctx.arc(x + 24, y + 18, 8.5, 0, Math.PI * 2);
+  ctx.arc(x + 60, y + 18, 8.5, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#7d4a2a';
   ctx.beginPath();
-  ctx.arc(x + 42, y + 26, 28, 0, Math.PI * 2);
+  ctx.ellipse(x + 42, y + 28, 30, 25, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#f3d5ad';
   ctx.beginPath();
-  ctx.ellipse(x + 42, y + 33, 22, 18, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + 42, y + 36, 19, 15, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#2d1b15';
   ctx.beginPath();
-  ctx.arc(x + 32, y + 27, 3.6, 0, Math.PI * 2);
-  ctx.arc(x + 52, y + 27, 3.6, 0, Math.PI * 2);
+  ctx.arc(x + 34, y + 28, 3.2, 0, Math.PI * 2);
+  ctx.arc(x + 50, y + 28, 3.2, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#d27d72';
   ctx.beginPath();
-  ctx.arc(x + 24, y + 36, 5, 0, Math.PI * 2);
-  ctx.arc(x + 60, y + 36, 5, 0, Math.PI * 2);
+  ctx.arc(x + 28, y + 37, 4.2, 0, Math.PI * 2);
+  ctx.arc(x + 56, y + 37, 4.2, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = '#6f3520';
-  ctx.lineWidth = 2.8;
+  drawOtterNose(x + 42, y + 33, 4.5);
+  drawOtterWhiskers(x + 42, y + 35, 12);
+
+  ctx.strokeStyle = '#734029';
+  ctx.lineWidth = 2.4;
   ctx.beginPath();
-  ctx.arc(x + 42, y + 34, 9, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.arc(x + 42, y + 39, 7, 0.08 * Math.PI, 0.92 * Math.PI);
   ctx.stroke();
 
   ctx.fillStyle = '#203f68';
@@ -832,8 +860,8 @@ function drawPlayer() {
   ctx.strokeStyle = '#6f3f22';
   ctx.lineWidth = 6;
   ctx.beginPath();
-  ctx.moveTo(x + 12, y + 60);
-  ctx.quadraticCurveTo(x - 8, y + 42, x + 4, y + 28);
+  ctx.moveTo(x + 12, y + 59);
+  ctx.quadraticCurveTo(x - 10, y + 44, x + 2, y + 26);
   ctx.stroke();
 }
 
@@ -863,26 +891,29 @@ function drawSlidingPlayer() {
 
   ctx.fillStyle = '#7f4b2c';
   ctx.beginPath();
-  ctx.arc(x + 34, y + 18 + slideDrift, 9, 0, Math.PI * 2);
-  ctx.arc(x + 62, y + 20 + slideDrift, 9, 0, Math.PI * 2);
+  ctx.arc(x + 36, y + 19 + slideDrift, 7.5, 0, Math.PI * 2);
+  ctx.arc(x + 62, y + 21 + slideDrift, 7.5, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#2d1b15';
   ctx.beginPath();
-  ctx.arc(x + 45, y + 34 + slideDrift, 3.2, 0, Math.PI * 2);
-  ctx.arc(x + 60, y + 35 + slideDrift, 3.2, 0, Math.PI * 2);
+  ctx.arc(x + 47, y + 34 + slideDrift, 3, 0, Math.PI * 2);
+  ctx.arc(x + 59, y + 35 + slideDrift, 3, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#d27d72';
   ctx.beginPath();
-  ctx.arc(x + 37, y + 42 + slideDrift, 4.6, 0, Math.PI * 2);
-  ctx.arc(x + 67, y + 43 + slideDrift, 4.6, 0, Math.PI * 2);
+  ctx.arc(x + 40, y + 43 + slideDrift, 4, 0, Math.PI * 2);
+  ctx.arc(x + 65, y + 43 + slideDrift, 4, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.strokeStyle = '#6f3520';
-  ctx.lineWidth = 2.6;
+  drawOtterNose(x + 53, y + 39 + slideDrift, 4);
+  drawOtterWhiskers(x + 53, y + 41 + slideDrift, 11);
+
+  ctx.strokeStyle = '#734029';
+  ctx.lineWidth = 2.2;
   ctx.beginPath();
-  ctx.arc(x + 53, y + 41 + slideDrift, 8, 0.18 * Math.PI, 0.86 * Math.PI);
+  ctx.arc(x + 53, y + 45 + slideDrift, 6.5, 0.1 * Math.PI, 0.9 * Math.PI);
   ctx.stroke();
 
   drawRoundedRect(x + 24, y + 16 + slideDrift, 46, 14, 8, '#315d90');
