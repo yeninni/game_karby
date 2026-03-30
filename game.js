@@ -32,6 +32,9 @@ const STORAGE_KEYS = {
 const leaderboard = loadJson(STORAGE_KEYS.leaderboard, []);
 const lastPlayer = localStorage.getItem(STORAGE_KEYS.lastPlayer) || '';
 const BIRD_UNLOCK_DISTANCE = 5000;
+const BIRD_SPAWN_CHANCE = 0.12;
+const BIRD_COOLDOWN_MIN_MS = 6500;
+const BIRD_COOLDOWN_MAX_MS = 11000;
 
 let state = {
   playing: false,
@@ -62,6 +65,7 @@ const groundY = canvas.height - 96;
 const obstacles = [];
 const particles = [];
 let spawnTimer = 0;
+let birdCooldown = 0;
 let cloudOffset = 0;
 let hillOffset = 0;
 let sparkOffset = 0;
@@ -267,6 +271,7 @@ function resetGame() {
   obstacles.length = 0;
   particles.length = 0;
   spawnTimer = 0;
+  birdCooldown = 0;
   player.y = groundY - player.height;
   player.velocityY = 0;
   player.grounded = true;
@@ -322,8 +327,13 @@ function maybeSpawnObstacle(delta) {
   if (spawnTimer < threshold) return;
   spawnTimer = 0;
 
-  const canSpawnBird = state.distance >= BIRD_UNLOCK_DISTANCE && Math.random() > 0.7;
+  const canSpawnBird = (
+    state.distance >= BIRD_UNLOCK_DISTANCE
+    && birdCooldown <= 0
+    && Math.random() < BIRD_SPAWN_CHANCE
+  );
   if (canSpawnBird) {
+    birdCooldown = BIRD_COOLDOWN_MIN_MS + Math.random() * (BIRD_COOLDOWN_MAX_MS - BIRD_COOLDOWN_MIN_MS);
     obstacles.push({
       x: canvas.width + 80,
       y: groundY - player.height + 8,
@@ -351,6 +361,7 @@ function update(delta) {
 
   state.distance += state.speed * delta * 0.024;
   state.speed += delta * 0.00035;
+  birdCooldown = Math.max(0, birdCooldown - delta);
   if (state.distance >= BIRD_UNLOCK_DISTANCE && !state.birdIntroShown) {
     state.birdIntroShown = true;
     pushSystemMessage('5000m 돌파! 새가 날아오면 오른쪽 방향키로 슬라이딩해서 피하세요.');
