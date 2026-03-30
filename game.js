@@ -39,6 +39,7 @@ let state = {
   speed: 4.2,
   gravity: 0.68,
   lastTime: 0,
+  timeOfDayTime: 0,
   playerName: lastPlayer,
 };
 
@@ -60,6 +61,82 @@ let spawnTimer = 0;
 let cloudOffset = 0;
 let hillOffset = 0;
 let sparkOffset = 0;
+
+const TIME_OF_DAY_HOLD_MS = 45000;
+const TIME_OF_DAY_TRANSITION_MS = 2500;
+const TIME_OF_DAY_STEP_MS = TIME_OF_DAY_HOLD_MS + TIME_OF_DAY_TRANSITION_MS;
+const TIME_OF_DAY_CYCLE_MS = TIME_OF_DAY_STEP_MS * 4;
+
+const TIME_OF_DAY_PALETTES = [
+  {
+    skyTop: '#bfe8fa',
+    skyMid: '#dff3dc',
+    skyBottom: '#d6a775',
+    cloud: 'rgba(255,255,255,0.72)',
+    hill: '#a7cf85',
+    grass: '#5f9e5f',
+    dirt: '#6b4327',
+    spark: '#f7ce65',
+    sun: '#ffd46b',
+    moon: '#f4f3ff',
+    sunY: 92,
+    sunOpacity: 1,
+    moonY: canvas.height + 80,
+    moonOpacity: 0,
+    starsOpacity: 0,
+  },
+  {
+    skyTop: '#8fd8ff',
+    skyMid: '#b9f0ff',
+    skyBottom: '#c7e59a',
+    cloud: 'rgba(255,255,255,0.88)',
+    hill: '#8fc56f',
+    grass: '#4b9551',
+    dirt: '#6a4129',
+    spark: '#fff0a4',
+    sun: '#fff1a8',
+    moon: '#f4f3ff',
+    sunY: 76,
+    sunOpacity: 1,
+    moonY: canvas.height + 80,
+    moonOpacity: 0,
+    starsOpacity: 0,
+  },
+  {
+    skyTop: '#5665c8',
+    skyMid: '#ee9267',
+    skyBottom: '#6d4d6e',
+    cloud: 'rgba(255,230,217,0.68)',
+    hill: '#6e8d63',
+    grass: '#456b4b',
+    dirt: '#513321',
+    spark: '#ffc86a',
+    sun: '#ffb55d',
+    moon: '#f8f6ff',
+    sunY: 112,
+    sunOpacity: 0.95,
+    moonY: 172,
+    moonOpacity: 0,
+    starsOpacity: 0.08,
+  },
+  {
+    skyTop: '#0f1a3a',
+    skyMid: '#182b59',
+    skyBottom: '#28406d',
+    cloud: 'rgba(214,226,255,0.22)',
+    hill: '#2e4c4f',
+    grass: '#2c5643',
+    dirt: '#35251d',
+    spark: '#d6df96',
+    sun: '#ffb55d',
+    moon: '#f6f4ff',
+    sunY: canvas.height + 120,
+    sunOpacity: 0,
+    moonY: 92,
+    moonOpacity: 1,
+    starsOpacity: 1,
+  },
+];
 
 function loadJson(key, fallback) {
   try {
@@ -162,6 +239,7 @@ function prepareRun() {
 function resetGame() {
   state.distance = 0;
   state.speed = 4.2;
+  state.timeOfDayTime = 0;
   state.playing = true;
   state.paused = false;
   obstacles.length = 0;
@@ -218,6 +296,7 @@ function maybeSpawnObstacle(delta) {
 }
 
 function update(delta) {
+  state.timeOfDayTime += delta;
   if (!state.playing || state.paused) return;
 
   state.distance += state.speed * delta * 0.024;
@@ -329,69 +408,98 @@ function mixColor(from, to, amount) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-function getTimePalette() {
-  const morning = {
-    skyTop: '#bfe8fa',
-    skyMid: '#dff3dc',
-    skyBottom: '#d6a775',
-    cloud: 'rgba(255,255,255,0.72)',
-    hill: '#a7cf85',
-    grass: '#5f9e5f',
-    dirt: '#6b4327',
-    spark: '#f7ce65',
-    sun: '#ffd46b',
+function blendPalette(from, to, amount) {
+  return {
+    skyTop: mixColor(from.skyTop, to.skyTop, amount),
+    skyMid: mixColor(from.skyMid, to.skyMid, amount),
+    skyBottom: mixColor(from.skyBottom, to.skyBottom, amount),
+    cloud: amount < 0.5 ? from.cloud : to.cloud,
+    hill: mixColor(from.hill, to.hill, amount),
+    grass: mixColor(from.grass, to.grass, amount),
+    dirt: mixColor(from.dirt, to.dirt, amount),
+    spark: mixColor(from.spark, to.spark, amount),
+    sun: mixColor(from.sun, to.sun, amount),
+    moon: mixColor(from.moon, to.moon, amount),
+    sunY: lerp(from.sunY, to.sunY, amount),
+    sunOpacity: lerp(from.sunOpacity, to.sunOpacity, amount),
+    moonY: lerp(from.moonY, to.moonY, amount),
+    moonOpacity: lerp(from.moonOpacity, to.moonOpacity, amount),
+    starsOpacity: lerp(from.starsOpacity, to.starsOpacity, amount),
   };
-  const noon = {
-    skyTop: '#8fd8ff',
-    skyMid: '#b9f0ff',
-    skyBottom: '#c7e59a',
-    cloud: 'rgba(255,255,255,0.88)',
-    hill: '#8fc56f',
-    grass: '#4b9551',
-    dirt: '#6a4129',
-    spark: '#fff0a4',
-    sun: '#fff1a8',
-  };
-  const evening = {
-    skyTop: '#5e6ccf',
-    skyMid: '#f29b6d',
-    skyBottom: '#6f4a68',
-    cloud: 'rgba(255,230,217,0.78)',
-    hill: '#6e8d63',
-    grass: '#456b4b',
-    dirt: '#513321',
-    spark: '#ffc86a',
-    sun: '#ffb55d',
-  };
+}
 
-  const distance = state.distance;
-  if (distance < 260) {
-    const amount = Math.min(1, distance / 260);
-    return {
-      skyTop: mixColor(morning.skyTop, noon.skyTop, amount),
-      skyMid: mixColor(morning.skyMid, noon.skyMid, amount),
-      skyBottom: mixColor(morning.skyBottom, noon.skyBottom, amount),
-      cloud: amount < 0.5 ? morning.cloud : noon.cloud,
-      hill: mixColor(morning.hill, noon.hill, amount),
-      grass: mixColor(morning.grass, noon.grass, amount),
-      dirt: mixColor(morning.dirt, noon.dirt, amount),
-      spark: mixColor(morning.spark, noon.spark, amount),
-      sun: mixColor(morning.sun, noon.sun, amount),
-    };
+function getTimePalette() {
+  const cycleTime = state.timeOfDayTime % TIME_OF_DAY_CYCLE_MS;
+  const segmentIndex = Math.floor(cycleTime / TIME_OF_DAY_STEP_MS);
+  const segmentTime = cycleTime % TIME_OF_DAY_STEP_MS;
+  const currentPalette = TIME_OF_DAY_PALETTES[segmentIndex];
+
+  if (segmentTime < TIME_OF_DAY_HOLD_MS) {
+    return currentPalette;
   }
 
-  const amount = Math.min(1, (distance - 260) / 320);
-  return {
-    skyTop: mixColor(noon.skyTop, evening.skyTop, amount),
-    skyMid: mixColor(noon.skyMid, evening.skyMid, amount),
-    skyBottom: mixColor(noon.skyBottom, evening.skyBottom, amount),
-    cloud: amount < 0.5 ? noon.cloud : evening.cloud,
-    hill: mixColor(noon.hill, evening.hill, amount),
-    grass: mixColor(noon.grass, evening.grass, amount),
-    dirt: mixColor(noon.dirt, evening.dirt, amount),
-    spark: mixColor(noon.spark, evening.spark, amount),
-    sun: mixColor(noon.sun, evening.sun, amount),
-  };
+  const nextPalette = TIME_OF_DAY_PALETTES[(segmentIndex + 1) % TIME_OF_DAY_PALETTES.length];
+  const amount = (segmentTime - TIME_OF_DAY_HOLD_MS) / TIME_OF_DAY_TRANSITION_MS;
+
+  return blendPalette(currentPalette, nextPalette, amount);
+}
+
+function drawStars(opacity) {
+  if (opacity <= 0.02) return;
+
+  const stars = [
+    { x: 86, y: 72, size: 2.2 },
+    { x: 148, y: 56, size: 1.8 },
+    { x: 214, y: 102, size: 2.6 },
+    { x: 308, y: 64, size: 2.1 },
+    { x: 392, y: 88, size: 1.9 },
+    { x: 484, y: 52, size: 2.4 },
+    { x: 576, y: 108, size: 1.7 },
+    { x: 664, y: 74, size: 2.5 },
+    { x: 748, y: 46, size: 1.8 },
+    { x: 824, y: 94, size: 2.2 },
+  ];
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = '#fff8dc';
+
+  stars.forEach(star => {
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.restore();
+}
+
+function drawMoon(palette) {
+  if (palette.moonOpacity <= 0.02) return;
+
+  ctx.save();
+  ctx.globalAlpha = palette.moonOpacity;
+  ctx.fillStyle = palette.moon;
+  ctx.beginPath();
+  ctx.arc(canvas.width - 118, palette.moonY, 28, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(202, 216, 255, 0.45)';
+  ctx.beginPath();
+  ctx.arc(canvas.width - 106, palette.moonY - 8, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawSun(palette) {
+  if (palette.sunOpacity <= 0.02) return;
+
+  ctx.save();
+  ctx.globalAlpha = palette.sunOpacity;
+  ctx.fillStyle = palette.sun;
+  ctx.beginPath();
+  ctx.arc(canvas.width - 110, palette.sunY, 34, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawBackground() {
@@ -403,10 +511,9 @@ function drawBackground() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = palette.sun;
-  ctx.beginPath();
-  ctx.arc(canvas.width - 110, 86, 34, 0, Math.PI * 2);
-  ctx.fill();
+  drawStars(palette.starsOpacity);
+  drawMoon(palette);
+  drawSun(palette);
 
   ctx.fillStyle = palette.cloud;
   for (let i = 0; i < 5; i += 1) {
