@@ -839,56 +839,85 @@ function drawPlayer() {
 
 function drawSlidingPlayer() {
   const x = player.x;
-  const y = player.y + 22;
+  const y = player.y + 18;
+  const slideDrift = Math.sin(player.bob * 1.4) * 1.5;
 
   ctx.fillStyle = '#7d4a2a';
   ctx.beginPath();
-  ctx.ellipse(x + 40, y + 44, 42, 22, 0, 0, Math.PI * 2);
+  ctx.ellipse(x + 38, y + 52, 30, 18, -0.1, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.fillStyle = '#f0cfaa';
+  ctx.fillStyle = '#684125';
+  ctx.fillRect(x + 16, y + 35, 16, 28);
+  ctx.fillRect(x + 48, y + 46, 18, 18);
+
+  ctx.fillStyle = '#7d4a2a';
   ctx.beginPath();
-  ctx.ellipse(x + 56, y + 34, 18, 12, -0.16, 0, Math.PI * 2);
+  ctx.ellipse(x + 48, y + 34 + slideDrift, 28, 22, -0.08, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f3d5ad';
+  ctx.beginPath();
+  ctx.ellipse(x + 52, y + 39 + slideDrift, 22, 16, -0.08, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#7f4b2c';
   ctx.beginPath();
-  ctx.arc(x + 49, y + 22, 8, 0, Math.PI * 2);
-  ctx.arc(x + 69, y + 24, 8, 0, Math.PI * 2);
+  ctx.arc(x + 34, y + 18 + slideDrift, 9, 0, Math.PI * 2);
+  ctx.arc(x + 62, y + 20 + slideDrift, 9, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.fillStyle = '#2d1b15';
   ctx.beginPath();
-  ctx.arc(x + 54, y + 34, 3.2, 0, Math.PI * 2);
-  ctx.arc(x + 68, y + 34, 3.2, 0, Math.PI * 2);
+  ctx.arc(x + 45, y + 34 + slideDrift, 3.2, 0, Math.PI * 2);
+  ctx.arc(x + 60, y + 35 + slideDrift, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#d27d72';
+  ctx.beginPath();
+  ctx.arc(x + 37, y + 42 + slideDrift, 4.6, 0, Math.PI * 2);
+  ctx.arc(x + 67, y + 43 + slideDrift, 4.6, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.strokeStyle = '#6f3520';
-  ctx.lineWidth = 2.4;
+  ctx.lineWidth = 2.6;
   ctx.beginPath();
-  ctx.arc(x + 60, y + 39, 8, 0.2 * Math.PI, 0.82 * Math.PI);
+  ctx.arc(x + 53, y + 41 + slideDrift, 8, 0.18 * Math.PI, 0.86 * Math.PI);
   ctx.stroke();
 
-  drawRoundedRect(x + 14, y + 38, 50, 18, 9, '#2f7b4c');
-  drawRoundedRect(x + 10, y + 34, 58, 10, 5, '#bf4937');
+  drawRoundedRect(x + 24, y + 16 + slideDrift, 46, 14, 8, '#315d90');
+  drawRoundedRect(x + 30, y + 6 + slideDrift, 34, 14, 7, '#476f9d');
+  drawRoundedRect(x + 18, y + 48, 52, 18, 9, '#2f7b4c');
+  drawRoundedRect(x + 14, y + 44, 58, 10, 5, '#bf4937');
+  drawRoundedRect(x + 43, y + 15 + slideDrift, 8, 5, 1.5, '#e6b74d');
+
   ctx.strokeStyle = '#f0c458';
   ctx.lineWidth = 1.4;
-  ctx.strokeRect(x + 16, y + 40, 46, 13);
+  ctx.strokeRect(x + 21, y + 50, 46, 14);
 
   ctx.fillStyle = '#7d4a2a';
-  ctx.fillRect(x + 12, y + 42, 16, 22);
-  ctx.fillRect(x + 28, y + 50, 34, 10);
-  ctx.fillRect(x + 56, y + 46, 20, 10);
+  ctx.fillRect(x + 20, y + 62, 10, 16);
+  ctx.fillRect(x + 53, y + 60, 16, 10);
+  ctx.fillRect(x + 10, y + 47, 12, 18);
 
   ctx.fillStyle = '#f0d2ad';
-  ctx.fillRect(x + 14, y + 58, 12, 7);
-  ctx.fillRect(x + 64, y + 46, 10, 6);
+  ctx.fillRect(x + 18, y + 74, 14, 7);
+  ctx.fillRect(x + 63, y + 58, 10, 6);
 
   ctx.strokeStyle = '#6f3f22';
   ctx.lineWidth = 5;
   ctx.beginPath();
-  ctx.moveTo(x + 8, y + 46);
-  ctx.quadraticCurveTo(x - 10, y + 34, x - 2, y + 18);
+  ctx.moveTo(x + 13, y + 55);
+  ctx.quadraticCurveTo(x - 9, y + 42, x + 1, y + 26);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(244, 224, 164, 0.55)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x + 82, y + 60);
+  ctx.lineTo(x + 102, y + 55);
+  ctx.moveTo(x + 84, y + 67);
+  ctx.lineTo(x + 112, y + 63);
   ctx.stroke();
 }
 
