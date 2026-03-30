@@ -29,12 +29,20 @@ const STORAGE_KEYS = {
   lastPlayer: 'karby_last_player',
 };
 
+const SUPABASE_CONFIG = window.__SUPABASE_CONFIG__ || {};
+const SUPABASE_TABLE = SUPABASE_CONFIG.leaderboardTable || 'leaderboard_scores';
+const SUPABASE_ENABLED = Boolean(
+  SUPABASE_CONFIG.url
+  && SUPABASE_CONFIG.anonKey
+);
+
 const leaderboard = loadJson(STORAGE_KEYS.leaderboard, []);
 const lastPlayer = localStorage.getItem(STORAGE_KEYS.lastPlayer) || '';
 const BIRD_UNLOCK_DISTANCE = 5000;
 const BIRD_SPAWN_CHANCE = 0.12;
 const BIRD_COOLDOWN_MIN_MS = 6500;
 const BIRD_COOLDOWN_MAX_MS = 11000;
+const REMOTE_SCORE_FETCH_LIMIT = 1000;
 
 let state = {
   playing: false,
@@ -197,6 +205,135 @@ function refreshCurrentPlayer() {
   bestValue.textContent = `${String(Math.floor(state.best)).padStart(3, '0')}m`;
 }
 
+function sortLeaderboardEntries(entries) {
+  entries.sort((a, b) => {
+    if (b.bestDistance !== a.bestDistance) return b.bestDistance - a.bestDistance;
+    return new Date(b.updatedAt) - new Date(a.updatedAt);
+  });
+}
+
+function replaceLeaderboard(entries) {
+  leaderboard.splice(0, leaderboard.length, ...entries);
+  sortLeaderboardEntries(leaderboard);
+  saveJson(STORAGE_KEYS.leaderboard, leaderboard);
+  renderLeaderboard();
+  refreshCurrentPlayer();
+}
+
+function aggregateScores(scores) {
+  const byPlayer = new Map();
+
+  scores.forEach(score => {
+    const name = normalizeName(score.player_name || score.name || '');
+    if (!name) return;
+    const key = name.toLowerCase();
+    const existing = byPlayer.get(key);
+    const distance = Math.floor(Number(score.distance) || 0);
+    const updatedAt = score.created_at || score.updatedAt || new Date().toISOString();
+
+    if (!existing) {
+      byPlayer.set(key, {
+        name,
+        bestDistance: distance,
+        games: 1,
+        updatedAt,
+      });
+      return;
+    }
+
+    existing.games += 1;
+    existing.bestDistance = Math.max(existing.bestDistance, distance);
+    if (new Date(updatedAt) > new Date(existing.updatedAt)) {
+      existing.updatedAt = updatedAt;
+    }
+  });
+
+  return Array.from(byPlayer.values());
+}
+
+async function syncLeaderboardFromSupabase() {
+  if (!SUPABASE_ENABLED) return false;
+
+  try {
+    const query = new URLSearchParams({
+      select: 'player_name,distance,created_at',
+      order: 'distance.desc,created_at.desc',
+      limit: String(REMOTE_SCORE_FETCH_LIMIT),
+    });
+
+    const response = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/${SUPABASE_TABLE}?${query.toString()}`, {
+      headers: {
+        apikey: SUPABASE_CONFIG.anonKey,
+        Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to load leaderboard from Supabase:', response.status, response.statusText);
+      return false;
+    }
+
+    const data = await response.json();
+    replaceLeaderboard(aggregateScores(data || []));
+    return true;
+  } catch (error) {
+    console.error('Failed to load leaderboard from Supabase:', error);
+    return false;
+  }
+}
+
+function updateLeaderboardEntry(name, score, updatedAt = new Date().toISOString()) {
+  const existing = findLeaderboardEntry(name);
+  if (existing) {
+    existing.games += 1;
+    existing.updatedAt = updatedAt;
+    existing.bestDistance = Math.max(existing.bestDistance, score);
+  } else {
+    leaderboard.push({
+      name,
+      bestDistance: score,
+      games: 1,
+      updatedAt,
+    });
+  }
+
+  sortLeaderboardEntries(leaderboard);
+  saveJson(STORAGE_KEYS.leaderboard, leaderboard);
+  renderLeaderboard();
+  refreshCurrentPlayer();
+}
+
+async function saveScoreToSupabase(name, score) {
+  if (!SUPABASE_ENABLED) return false;
+
+  try {
+    const response = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/${SUPABASE_TABLE}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_CONFIG.anonKey,
+        Authorization: `Bearer ${SUPABASE_CONFIG.anonKey}`,
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify({
+        player_name: name,
+        distance: score,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to save score to Supabase:', response.status, response.statusText);
+      return false;
+    }
+
+    await syncLeaderboardFromSupabase();
+    return true;
+  } catch (error) {
+    console.error('Failed to save score to Supabase:', error);
+    return false;
+  }
+}
+
 function renderLeaderboard() {
   if (!leaderboard.length) {
     leaderboardList.innerHTML = '<li class="chat-line system"><span class="chat-name">system</span><p>아직 기록이 없어요.</p></li>';
@@ -221,27 +358,8 @@ function saveScore(score) {
   if (!state.playerName) return null;
 
   const now = new Date().toISOString();
-  const existing = findLeaderboardEntry(state.playerName);
-  if (existing) {
-    existing.games += 1;
-    existing.updatedAt = now;
-    existing.bestDistance = Math.max(existing.bestDistance, score);
-  } else {
-    leaderboard.push({
-      name: state.playerName,
-      bestDistance: score,
-      games: 1,
-      updatedAt: now,
-    });
-  }
-
-  leaderboard.sort((a, b) => {
-    if (b.bestDistance !== a.bestDistance) return b.bestDistance - a.bestDistance;
-    return new Date(b.updatedAt) - new Date(a.updatedAt);
-  });
-  saveJson(STORAGE_KEYS.leaderboard, leaderboard);
-  renderLeaderboard();
-  refreshCurrentPlayer();
+  updateLeaderboardEntry(state.playerName, score, now);
+  void saveScoreToSupabase(state.playerName, score);
   return leaderboard.findIndex(entry => entry.name.toLowerCase() === state.playerName.toLowerCase()) + 1;
 }
 
@@ -959,4 +1077,5 @@ renderLeaderboard();
 renderHud();
 player.y = groundY - player.height;
 chatWindow.innerHTML = '<div class="chat-line system"><span class="chat-name">system</span><p>아직 남겨진 글이 없어요.</p></div>';
+void syncLeaderboardFromSupabase();
 requestAnimationFrame(loop);
