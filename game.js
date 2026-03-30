@@ -62,10 +62,11 @@ let cloudOffset = 0;
 let hillOffset = 0;
 let sparkOffset = 0;
 
-const TIME_OF_DAY_HOLD_MS = 45000;
+const MORNING_HOLD_MS = 18000;
+const NOON_HOLD_MS = 18000;
+const EVENING_HOLD_MS = 18000;
+const NIGHT_HOLD_MS = 24000;
 const TIME_OF_DAY_TRANSITION_MS = 2500;
-const TIME_OF_DAY_STEP_MS = TIME_OF_DAY_HOLD_MS + TIME_OF_DAY_TRANSITION_MS;
-const TIME_OF_DAY_CYCLE_MS = TIME_OF_DAY_STEP_MS * 4;
 
 const TIME_OF_DAY_PALETTES = [
   {
@@ -137,6 +138,23 @@ const TIME_OF_DAY_PALETTES = [
     starsOpacity: 1,
   },
 ];
+
+const TIME_OF_DAY_HOLDS = [
+  MORNING_HOLD_MS,
+  NOON_HOLD_MS,
+  EVENING_HOLD_MS,
+  NIGHT_HOLD_MS,
+];
+
+const TIME_OF_DAY_SEGMENTS = TIME_OF_DAY_PALETTES.map((palette, index) => ({
+  palette,
+  holdMs: TIME_OF_DAY_HOLDS[index],
+}));
+
+const TIME_OF_DAY_CYCLE_MS = TIME_OF_DAY_SEGMENTS.reduce(
+  (total, segment) => total + segment.holdMs + TIME_OF_DAY_TRANSITION_MS,
+  0,
+);
 
 function loadJson(key, fallback) {
   try {
@@ -239,7 +257,6 @@ function prepareRun() {
 function resetGame() {
   state.distance = 0;
   state.speed = 4.2;
-  state.timeOfDayTime = 0;
   state.playing = true;
   state.paused = false;
   obstacles.length = 0;
@@ -430,18 +447,28 @@ function blendPalette(from, to, amount) {
 
 function getTimePalette() {
   const cycleTime = state.timeOfDayTime % TIME_OF_DAY_CYCLE_MS;
-  const segmentIndex = Math.floor(cycleTime / TIME_OF_DAY_STEP_MS);
-  const segmentTime = cycleTime % TIME_OF_DAY_STEP_MS;
-  const currentPalette = TIME_OF_DAY_PALETTES[segmentIndex];
+  let elapsed = 0;
 
-  if (segmentTime < TIME_OF_DAY_HOLD_MS) {
-    return currentPalette;
+  for (let index = 0; index < TIME_OF_DAY_SEGMENTS.length; index += 1) {
+    const currentSegment = TIME_OF_DAY_SEGMENTS[index];
+    const segmentStart = elapsed;
+    const holdEnd = segmentStart + currentSegment.holdMs;
+    const transitionEnd = holdEnd + TIME_OF_DAY_TRANSITION_MS;
+
+    if (cycleTime < holdEnd) {
+      return currentSegment.palette;
+    }
+
+    if (cycleTime < transitionEnd) {
+      const nextSegment = TIME_OF_DAY_SEGMENTS[(index + 1) % TIME_OF_DAY_SEGMENTS.length];
+      const amount = (cycleTime - holdEnd) / TIME_OF_DAY_TRANSITION_MS;
+      return blendPalette(currentSegment.palette, nextSegment.palette, amount);
+    }
+
+    elapsed = transitionEnd;
   }
 
-  const nextPalette = TIME_OF_DAY_PALETTES[(segmentIndex + 1) % TIME_OF_DAY_PALETTES.length];
-  const amount = (segmentTime - TIME_OF_DAY_HOLD_MS) / TIME_OF_DAY_TRANSITION_MS;
-
-  return blendPalette(currentPalette, nextPalette, amount);
+  return TIME_OF_DAY_SEGMENTS[0].palette;
 }
 
 function drawStars(opacity) {
