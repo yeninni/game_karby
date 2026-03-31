@@ -10,6 +10,7 @@ const playerNameInput = document.getElementById('player-name-input');
 const overlayHelper = document.getElementById('overlay-helper');
 const playerValue = document.getElementById('player-value');
 const distanceValue = document.getElementById('distance-value');
+const coinsValue = document.getElementById('coins-value');
 const bestValue = document.getElementById('best-value');
 const leaderboardList = document.getElementById('leaderboard-list');
 
@@ -42,12 +43,16 @@ const BIRD_UNLOCK_DISTANCE = 5000;
 const BIRD_SPAWN_CHANCE = 0.12;
 const BIRD_COOLDOWN_MIN_MS = 6500;
 const BIRD_COOLDOWN_MAX_MS = 11000;
+const COIN_SCORE_VALUE = 10;
+const COIN_SPAWN_MIN_MS = 1800;
+const COIN_SPAWN_MAX_MS = 3200;
 const REMOTE_SCORE_FETCH_LIMIT = 1000;
 
 let state = {
   playing: false,
   paused: false,
   distance: 0,
+  coins: 0,
   best: 0,
   speed: 4.2,
   gravity: 0.68,
@@ -71,8 +76,11 @@ const player = {
 
 const groundY = canvas.height - 96;
 const obstacles = [];
+const coins = [];
 const particles = [];
 let spawnTimer = 0;
+let coinSpawnTimer = 0;
+let nextCoinSpawnIn = randomCoinSpawnInterval();
 let birdCooldown = 0;
 let cloudOffset = 0;
 let hillOffset = 0;
@@ -202,7 +210,7 @@ function refreshCurrentPlayer() {
   playerValue.textContent = state.playerName || '-';
   const entry = state.playerName ? findLeaderboardEntry(state.playerName) : null;
   state.best = entry ? entry.bestDistance : 0;
-  bestValue.textContent = `${String(Math.floor(state.best)).padStart(3, '0')}m`;
+  bestValue.textContent = `${String(Math.floor(state.best)).padStart(3, '0')}pt`;
 }
 
 function sortLeaderboardEntries(entries) {
@@ -346,7 +354,7 @@ function renderLeaderboard() {
         <span class="rank-badge">${index + 1}</span>
         <div>
           <strong>${entry.name}</strong>
-          <div class="leader-meta">${entry.bestDistance}m</div>
+          <div class="leader-meta">${entry.bestDistance}pt</div>
         </div>
         <span class="leader-meta">${entry.games}회</span>
       </li>`
@@ -382,13 +390,17 @@ function prepareRun() {
 
 function resetGame() {
   state.distance = 0;
+  state.coins = 0;
   state.speed = 4.2;
   state.birdIntroShown = false;
   state.playing = true;
   state.paused = false;
   obstacles.length = 0;
+  coins.length = 0;
   particles.length = 0;
   spawnTimer = 0;
+  coinSpawnTimer = 0;
+  nextCoinSpawnIn = randomCoinSpawnInterval();
   birdCooldown = 0;
   player.y = groundY - player.height;
   player.velocityY = 0;
@@ -437,6 +449,62 @@ function emitDust(x, y, count, color) {
       color,
     });
   }
+}
+
+function randomCoinSpawnInterval() {
+  return COIN_SPAWN_MIN_MS + Math.random() * (COIN_SPAWN_MAX_MS - COIN_SPAWN_MIN_MS);
+}
+
+function getDistanceScore() {
+  return Math.floor(state.distance);
+}
+
+function getCoinBonus() {
+  return state.coins * COIN_SCORE_VALUE;
+}
+
+function getFinalScore() {
+  return getDistanceScore() + getCoinBonus();
+}
+
+function spawnCoinPattern() {
+  const patternRoll = Math.random();
+  const startX = canvas.width + 70;
+  const baseY = groundY - 122 - Math.random() * 54;
+  const pattern = patternRoll < 0.4
+    ? [{ x: 0, y: 0 }]
+    : patternRoll < 0.8
+      ? [
+          { x: 0, y: 14 },
+          { x: 34, y: 0 },
+          { x: 68, y: 14 },
+        ]
+      : [
+          { x: 0, y: 18 },
+          { x: 28, y: 0 },
+          { x: 56, y: -10 },
+          { x: 84, y: 0 },
+          { x: 112, y: 18 },
+        ];
+
+  pattern.forEach((offset, index) => {
+    coins.push({
+      x: startX + offset.x,
+      y: baseY + offset.y,
+      radius: 12,
+      spin: Math.random() * Math.PI * 2 + index * 0.3,
+      bobOffset: Math.random() * Math.PI * 2,
+    });
+  });
+}
+
+function maybeSpawnCoins(delta) {
+  coinSpawnTimer += delta;
+  if (coinSpawnTimer < nextCoinSpawnIn) return;
+
+  coinSpawnTimer = 0;
+  nextCoinSpawnIn = randomCoinSpawnInterval();
+  spawnCoinPattern();
 }
 
 function maybeSpawnObstacle(delta) {
@@ -500,14 +568,24 @@ function update(delta) {
   player.bob += delta * 0.012;
 
   maybeSpawnObstacle(delta);
+  maybeSpawnCoins(delta);
 
   obstacles.forEach(obstacle => {
     obstacle.x -= state.speed * delta * 0.1 * (obstacle.speedMultiplier || 1);
     if (obstacle.type === 'bird') obstacle.flap += delta * 0.018;
   });
 
+  coins.forEach(coin => {
+    coin.x -= state.speed * delta * 0.1;
+    coin.spin += delta * 0.01;
+  });
+
   while (obstacles.length && obstacles[0].x + obstacles[0].width < -30) {
     obstacles.shift();
+  }
+
+  while (coins.length && coins[0].x + coins[0].radius < -30) {
+    coins.shift();
   }
 
   particles.forEach((particle, index) => {
@@ -517,6 +595,15 @@ function update(delta) {
     particle.vy += 0.05;
     if (particle.life <= 0) particles.splice(index, 1);
   });
+
+  for (let index = coins.length - 1; index >= 0; index -= 1) {
+    if (intersectsCoin(player, coins[index])) {
+      const coin = coins[index];
+      coins.splice(index, 1);
+      state.coins += 1;
+      emitDust(coin.x, coin.y, 8, '#f2d061');
+    }
+  }
 
   for (const obstacle of obstacles) {
     if (intersects(player, obstacle)) {
@@ -544,22 +631,40 @@ function intersects(a, obstacle) {
   return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
 }
 
+function intersectsCoin(a, coin) {
+  const playerTopPadding = a.sliding ? 42 : 10;
+  const playerHeightPadding = a.sliding ? 48 : 14;
+  const left = a.x + 8;
+  const top = a.y + playerTopPadding;
+  const right = left + a.width - 16;
+  const bottom = top + a.height - playerHeightPadding;
+  const nearestX = Math.max(left, Math.min(coin.x, right));
+  const nearestY = Math.max(top, Math.min(coin.y, bottom));
+  const dx = coin.x - nearestX;
+  const dy = coin.y - nearestY;
+
+  return (dx * dx) + (dy * dy) <= coin.radius * coin.radius;
+}
+
 function endGame() {
   state.playing = false;
   overlay.classList.remove('hidden');
   document.querySelector('.overlay-badge').textContent = 'GAME OVER';
   document.querySelector('.overlay-card h3').textContent = '카비가 잠깐 미끄러졌어요!';
-  const finalDistance = Math.floor(state.distance);
-  const rank = saveScore(finalDistance);
-  document.querySelector('.overlay-card p').textContent = `이번 기록은 ${finalDistance}m 입니다.${rank ? ` 현재 ${rank}위예요.` : ''} 다시 도전해보세요.`;
+  const finalDistance = getDistanceScore();
+  const coinBonus = getCoinBonus();
+  const finalScore = getFinalScore();
+  const rank = saveScore(finalScore);
+  document.querySelector('.overlay-card p').textContent = `거리 ${finalDistance}m, 코인 ${state.coins}개로 보너스 ${coinBonus}점을 얻어 최종 ${finalScore}점입니다.${rank ? ` 현재 ${rank}위예요.` : ''} 다시 도전해보세요.`;
   overlayStartBtn.textContent = '다시 달리기';
   setOverlayHelper('같은 이름으로 다시 도전하거나 다른 이름을 입력할 수 있어요.', false);
-  pushSystemMessage(`${state.playerName || '플레이어'}님의 이번 기록은 ${finalDistance}m`);
+  pushSystemMessage(`${state.playerName || '플레이어'}님의 이번 점수는 ${finalScore}점 (거리 ${finalDistance}m / 코인 ${state.coins}개)`);
   renderHud();
 }
 
 function renderHud() {
-  distanceValue.textContent = `${String(Math.floor(state.distance)).padStart(3, '0')}m`;
+  distanceValue.textContent = `${String(getDistanceScore()).padStart(3, '0')}m`;
+  coinsValue.textContent = String(state.coins).padStart(2, '0');
   refreshCurrentPlayer();
 }
 
@@ -1021,6 +1126,46 @@ function drawObstacle(obstacle) {
   }
 }
 
+function drawCoin(coin) {
+  const bob = Math.sin((coin.spin * 1.7) + coin.bobOffset) * 2.5;
+  const widthScale = 0.72 + Math.abs(Math.cos(coin.spin)) * 0.28;
+
+  ctx.save();
+  ctx.translate(coin.x, coin.y + bob);
+  ctx.scale(widthScale, 1);
+
+  ctx.fillStyle = 'rgba(255, 231, 150, 0.18)';
+  ctx.beginPath();
+  ctx.arc(0, 0, coin.radius + 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#f4c94d';
+  ctx.beginPath();
+  ctx.arc(0, 0, coin.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#ffd978';
+  ctx.beginPath();
+  ctx.arc(-2, -2, coin.radius - 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = '#b57716';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, coin.radius - 1, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#fff5b8';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-3, -5);
+  ctx.lineTo(3, 5);
+  ctx.moveTo(3, -5);
+  ctx.lineTo(-3, 5);
+  ctx.stroke();
+  ctx.restore();
+}
+
 function drawParticles() {
   particles.forEach(particle => {
     ctx.globalAlpha = Math.max(0, particle.life / 30);
@@ -1034,6 +1179,7 @@ function drawParticles() {
 
 function render() {
   drawBackground();
+  coins.forEach(drawCoin);
   drawPlayer();
   obstacles.forEach(drawObstacle);
   drawParticles();
